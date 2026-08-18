@@ -1833,6 +1833,7 @@ function NeverLose:RegisiterHandler(Handler: Frame , Signal)
 			Config.Callback(Config.Default)
 		end;
 
+		Config.Flag = Config.Flag or NeverLose:GetAutoFlag("Toggle", Config.Name);
 		if Config.Flag then
 			NeverLose.Flags[Config.Flag] = ToggleLib;
 			NeverLose:ApplyPendingConfigFlag(Config.Flag, ToggleLib);
@@ -2161,6 +2162,7 @@ function NeverLose:RegisiterHandler(Handler: Frame , Signal)
 			Config.Callback(Config.Default);
 		end;
 
+		Config.Flag = Config.Flag or NeverLose:GetAutoFlag("Slider", Config.Name);
 		if Config.Flag then
 			NeverLose.Flags[Config.Flag] = SliderLib;
 			NeverLose:ApplyPendingConfigFlag(Config.Flag, SliderLib);
@@ -2272,6 +2274,7 @@ function NeverLose:RegisiterHandler(Handler: Frame , Signal)
 		Config = NeverLose:ProcessParams(Config , {
 			Default = Color3.fromRGB(255, 255, 255),
 			Callback  = EmptyFunction,
+			Flag = nil,
 		});
 
 		if typeof(Config.Default) == 'string' then
@@ -2385,10 +2388,15 @@ function NeverLose:RegisiterHandler(Handler: Frame , Signal)
 		end;
 
 		function ColorPickerLib:SetValue(v)
+			if typeof(v) == 'string' then
+				v = Color3.fromHex((v:gsub('#','')));
+			end;
 			Config.Default = v;
-			BackendM:SetValue(Config.Default)
+			BackendM:SetValue(Config.Default);
+			Config.Callback(Config.Default);
 		end;
 
+		Config.Flag = Config.Flag or NeverLose:GetAutoFlag("ColorPicker", Config.Name);
 		if Config.Flag then
 			NeverLose.Flags[Config.Flag] = ColorPickerLib;
 			NeverLose:ApplyPendingConfigFlag(Config.Flag, ColorPickerLib);
@@ -2543,6 +2551,7 @@ function NeverLose:RegisiterHandler(Handler: Frame , Signal)
 			Config.Callback(Config.Default);
 		end;
 
+		Config.Flag = Config.Flag or NeverLose:GetAutoFlag("Keybind", Config.Name);
 		if Config.Flag then
 			NeverLose.Flags[Config.Flag] = KeybindLib;
 			NeverLose:ApplyPendingConfigFlag(Config.Flag, KeybindLib);
@@ -2657,6 +2666,7 @@ function NeverLose:RegisiterHandler(Handler: Frame , Signal)
 			Config.Callback(Config.Default);
 		end;
 
+		Config.Flag = Config.Flag or NeverLose:GetAutoFlag("TextInput", Config.Name);
 		if Config.Flag then
 			NeverLose.Flags[Config.Flag] = TextBoxLib;
 			NeverLose:ApplyPendingConfigFlag(Config.Flag, TextBoxLib);
@@ -3153,6 +3163,7 @@ function NeverLose:RegisiterHandler(Handler: Frame , Signal)
 			end;
 		end;
 
+		Config.Flag = Config.Flag or NeverLose:GetAutoFlag("Dropdown", Config.Name);
 		if Config.Flag then
 			NeverLose.Flags[Config.Flag] = DropdownLib;
 			NeverLose:ApplyPendingConfigFlag(Config.Flag, DropdownLib);
@@ -3839,6 +3850,15 @@ function NeverLose:RegisiterItem(Frame: Frame , Signel)
 end;
 
 NeverLose.PendingConfig = NeverLose.PendingConfig or {};
+NeverLose.AutoFlagCounters = NeverLose.AutoFlagCounters or {};
+
+function NeverLose:GetAutoFlag(ControlType, Name)
+	local base = tostring(Name or "Unnamed"):gsub("[^%w_]", "_");
+	local key = tostring(ControlType)..":"..base;
+	local n = (NeverLose.AutoFlagCounters[key] or 0) + 1;
+	NeverLose.AutoFlagCounters[key] = n;
+	return "Auto_"..tostring(ControlType).."_"..base.."_"..tostring(n);
+end;
 
 function NeverLose:ApplyPendingConfigFlag(FlagName, FlagObject)
 	if not FlagName or not FlagObject or not FlagObject.SetValue then
