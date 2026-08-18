@@ -5424,24 +5424,53 @@ function NeverLose:CreateWindow(Config)
 		end;
 
 		function ConfigLib:LoadData(data)
-			local ok, coded = pcall(function()
+			local success, coded = pcall(function()
 				return HttpService:JSONDecode(Encryption.reverse(NeverLose.Base64Decode(data)));
 			end);
 
-			if not ok or type(coded) ~= 'table' then
+			if not success or type(coded) ~= 'table' then
 				return false;
 			end;
 
+			-- Some scripts create their flags after CreateWindow() returns.
+			-- Keep retrying missing flags for a few seconds instead of silently dropping them.
+			local pending = {};
+
 			for i,v in next , coded do
 				if type(v) == 'table' and v.Idx ~= nil then
-					local Flag = NeverLose.Flags[v.Idx];
-
-					if Flag and Flag.SetValue then
+					local flag = NeverLose.Flags[v.Idx];
+					if flag and flag.SetValue then
 						pcall(function()
-							Flag:SetValue(v.Value);
+							flag:SetValue(v.Value);
 						end);
+					else
+						table.insert(pending, v);
 					end;
 				end;
+			end;
+
+			if #pending > 0 then
+				task.spawn(function()
+					local deadline = os.clock() + 8;
+
+					while #pending > 0 and os.clock() < deadline do
+						for i = #pending, 1, -1 do
+							local v = pending[i];
+							local flag = NeverLose.Flags[v.Idx];
+
+							if flag and flag.SetValue then
+								pcall(function()
+									flag:SetValue(v.Value);
+								end);
+								table.remove(pending, i);
+							end;
+						end;
+
+						if #pending > 0 then
+							task.wait(0.05);
+						end;
+					end;
+				end);
 			end;
 
 			return true;
