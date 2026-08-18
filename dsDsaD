@@ -1835,6 +1835,7 @@ function NeverLose:RegisiterHandler(Handler: Frame , Signal)
 
 		if Config.Flag then
 			NeverLose.Flags[Config.Flag] = ToggleLib;
+			NeverLose:ApplyPendingConfigFlag(ToggleLib);
 		end;
 
 		return ToggleLib;
@@ -2162,6 +2163,7 @@ function NeverLose:RegisiterHandler(Handler: Frame , Signal)
 
 		if Config.Flag then
 			NeverLose.Flags[Config.Flag] = SliderLib;
+			NeverLose:ApplyPendingConfigFlag(SliderLib);
 		end;
 
 		return SliderLib;
@@ -2389,6 +2391,7 @@ function NeverLose:RegisiterHandler(Handler: Frame , Signal)
 
 		if Config.Flag then
 			NeverLose.Flags[Config.Flag] = ColorPickerLib;
+			NeverLose:ApplyPendingConfigFlag(ColorPickerLib);
 		end;
 
 		return ColorPickerLib;
@@ -2542,6 +2545,7 @@ function NeverLose:RegisiterHandler(Handler: Frame , Signal)
 
 		if Config.Flag then
 			NeverLose.Flags[Config.Flag] = KeybindLib;
+			NeverLose:ApplyPendingConfigFlag(KeybindLib);
 		end;
 
 		return KeybindLib;
@@ -2655,6 +2659,7 @@ function NeverLose:RegisiterHandler(Handler: Frame , Signal)
 
 		if Config.Flag then
 			NeverLose.Flags[Config.Flag] = TextBoxLib;
+			NeverLose:ApplyPendingConfigFlag(TextBoxLib);
 		end;
 
 		return TextBoxLib;
@@ -3150,6 +3155,7 @@ function NeverLose:RegisiterHandler(Handler: Frame , Signal)
 
 		if Config.Flag then
 			NeverLose.Flags[Config.Flag] = DropdownLib;
+			NeverLose:ApplyPendingConfigFlag(DropdownLib);
 		end;
 
 		return DropdownLib;
@@ -5423,54 +5429,53 @@ function NeverLose:CreateWindow(Config)
 			return NeverLose.Base64Encode(Encryption.new(HttpService:JSONEncode(ikc)));
 		end;
 
-		function ConfigLib:LoadData(data)
-			local success, coded = pcall(function()
-				return HttpService:JSONDecode(Encryption.reverse(NeverLose.Base64Decode(data)));
-			end);
+		NeverLose.PendingConfig = NeverLose.PendingConfig or {};
 
-			if not success or type(coded) ~= 'table' then
-				return false;
+		function NeverLose:ApplyPendingConfigFlag(Flag)
+			if not Flag then
+				return;
 			end;
 
-			-- Some scripts create their flags after CreateWindow() returns.
-			-- Keep retrying missing flags for a few seconds instead of silently dropping them.
-			local pending = {};
-
-			for i,v in next , coded do
-				if type(v) == 'table' and v.Idx ~= nil then
-					local flag = NeverLose.Flags[v.Idx];
-					if flag and flag.SetValue then
-						pcall(function()
-							flag:SetValue(v.Value);
-						end);
-					else
-						table.insert(pending, v);
-					end;
+			local flagName = nil;
+			for name,obj in next , NeverLose.Flags do
+				if obj == Flag then
+					flagName = name;
+					break;
 				end;
 			end;
 
-			if #pending > 0 then
-				task.spawn(function()
-					local deadline = os.clock() + 8;
-
-					while #pending > 0 and os.clock() < deadline do
-						for i = #pending, 1, -1 do
-							local v = pending[i];
-							local flag = NeverLose.Flags[v.Idx];
-
-							if flag and flag.SetValue then
-								pcall(function()
-									flag:SetValue(v.Value);
-								end);
-								table.remove(pending, i);
-							end;
-						end;
-
-						if #pending > 0 then
-							task.wait(0.05);
-						end;
-					end;
+			if flagName and NeverLose.PendingConfig[flagName] ~= nil then
+				local value = NeverLose.PendingConfig[flagName];
+				NeverLose.PendingConfig[flagName] = nil;
+				pcall(function()
+					Flag:SetValue(value);
 				end);
+			end;
+		end;
+
+		function ConfigLib:LoadData(data)
+			local ok, coded = pcall(function()
+				return HttpService:JSONDecode(Encryption.reverse(NeverLose.Base64Decode(data)));
+			end);
+
+			if not ok or type(coded) ~= 'table' then
+				return false;
+			end;
+
+			table.clear(NeverLose.PendingConfig);
+
+			for i,v in next , coded do
+				if type(v) == 'table' and v.Idx ~= nil then
+					NeverLose.PendingConfig[v.Idx] = v.Value;
+					local Flag = NeverLose.Flags[v.Idx];
+					if Flag and Flag.SetValue then
+						local value = NeverLose.PendingConfig[v.Idx];
+						NeverLose.PendingConfig[v.Idx] = nil;
+						pcall(function()
+							Flag:SetValue(value);
+						end);
+					end;
+				end;
 			end;
 
 			return true;
