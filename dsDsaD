@@ -1,4 +1,10 @@
-
+--[[
+                          Neverlose.cc UI Library
+    Author: 4lpaca
+	License: MIT
+    Discord: https://arceney.win/discord
+    Other-Projects: https://4lpaca.win
+]]
 
 do
 	local Constant = 'L'..'P'..'H'..'_NO_VIRTUALIZE';
@@ -1856,7 +1862,16 @@ function NeverLose:RegisiterHandler(Handler: Frame , Signal)
 		local SliderLib = {};
 
 		SliderLib.GetSize = LPH_NO_VIRTUALIZE(function()
-			return (Config.Default - Config.Min) / (Config.Max - Config.Min);
+			-- A stale/corrupt saved config, or a flag that used to belong to
+			-- a different control, can hand this a nil or otherwise unusable
+			-- Default/Min/Max — division-by-nil here used to throw and could
+			-- repeat on every autosave cycle. Fall back to 0 (empty bar)
+			-- instead of erroring.
+			local default, min, max = Config.Default, Config.Min, Config.Max
+			if type(default) ~= "number" or type(min) ~= "number" or type(max) ~= "number" or max == min then
+				return 0;
+			end
+			return math.clamp((default - min) / (max - min), 0, 1);
 		end);
 
 		local FullNumSize = TextService:GetTextSize(string.rep("0",(Config.Rounding + #tostring(Config.Max))+1)..tostring(Config.Type),10,Enum.Font.GothamMedium,Vector2.new(math.huge,math.huge));
@@ -5430,7 +5445,16 @@ function NeverLose:CreateWindow(Config)
 				if v.Idx then
 					if NeverLose.Flags[v.Idx] then
 						task.spawn(function()
-							NeverLose.Flags[v.Idx]:SetValue(v.Value)
+							-- A config saved by an older version of the menu can
+							-- hold a value that no longer matches what this
+							-- control expects (a slider whose Min/Max changed,
+							-- a flag that used to be a different control type,
+							-- etc.) — SetValue erroring on bad old data
+							-- shouldn't be able to kill the loop or spam errors
+							-- every autosave cycle.
+							pcall(function()
+								NeverLose.Flags[v.Idx]:SetValue(v.Value)
+							end)
 						end)
 					end;
 				end;
