@@ -1833,10 +1833,8 @@ function NeverLose:RegisiterHandler(Handler: Frame , Signal)
 			Config.Callback(Config.Default)
 		end;
 
-		Config.Flag = Config.Flag or NeverLose:GetAutoFlag("Toggle", Config.Name);
 		if Config.Flag then
 			NeverLose.Flags[Config.Flag] = ToggleLib;
-			NeverLose:ApplyPendingConfigFlag(Config.Flag, ToggleLib);
 		end;
 
 		return ToggleLib;
@@ -2162,10 +2160,8 @@ function NeverLose:RegisiterHandler(Handler: Frame , Signal)
 			Config.Callback(Config.Default);
 		end;
 
-		Config.Flag = Config.Flag or NeverLose:GetAutoFlag("Slider", Config.Name);
 		if Config.Flag then
 			NeverLose.Flags[Config.Flag] = SliderLib;
-			NeverLose:ApplyPendingConfigFlag(Config.Flag, SliderLib);
 		end;
 
 		return SliderLib;
@@ -2274,7 +2270,6 @@ function NeverLose:RegisiterHandler(Handler: Frame , Signal)
 		Config = NeverLose:ProcessParams(Config , {
 			Default = Color3.fromRGB(255, 255, 255),
 			Callback  = EmptyFunction,
-			Flag = nil,
 		});
 
 		if typeof(Config.Default) == 'string' then
@@ -2388,18 +2383,12 @@ function NeverLose:RegisiterHandler(Handler: Frame , Signal)
 		end;
 
 		function ColorPickerLib:SetValue(v)
-			if typeof(v) == 'string' then
-				v = Color3.fromHex((v:gsub('#','')));
-			end;
 			Config.Default = v;
-			BackendM:SetValue(Config.Default);
-			Config.Callback(Config.Default);
+			BackendM:SetValue(Config.Default)
 		end;
 
-		Config.Flag = Config.Flag or NeverLose:GetAutoFlag("ColorPicker", Config.Name);
 		if Config.Flag then
 			NeverLose.Flags[Config.Flag] = ColorPickerLib;
-			NeverLose:ApplyPendingConfigFlag(Config.Flag, ColorPickerLib);
 		end;
 
 		return ColorPickerLib;
@@ -2551,10 +2540,8 @@ function NeverLose:RegisiterHandler(Handler: Frame , Signal)
 			Config.Callback(Config.Default);
 		end;
 
-		Config.Flag = Config.Flag or NeverLose:GetAutoFlag("Keybind", Config.Name);
 		if Config.Flag then
 			NeverLose.Flags[Config.Flag] = KeybindLib;
-			NeverLose:ApplyPendingConfigFlag(Config.Flag, KeybindLib);
 		end;
 
 		return KeybindLib;
@@ -2666,10 +2653,8 @@ function NeverLose:RegisiterHandler(Handler: Frame , Signal)
 			Config.Callback(Config.Default);
 		end;
 
-		Config.Flag = Config.Flag or NeverLose:GetAutoFlag("TextInput", Config.Name);
 		if Config.Flag then
 			NeverLose.Flags[Config.Flag] = TextBoxLib;
-			NeverLose:ApplyPendingConfigFlag(Config.Flag, TextBoxLib);
 		end;
 
 		return TextBoxLib;
@@ -3163,10 +3148,8 @@ function NeverLose:RegisiterHandler(Handler: Frame , Signal)
 			end;
 		end;
 
-		Config.Flag = Config.Flag or NeverLose:GetAutoFlag("Dropdown", Config.Name);
 		if Config.Flag then
 			NeverLose.Flags[Config.Flag] = DropdownLib;
-			NeverLose:ApplyPendingConfigFlag(Config.Flag, DropdownLib);
 		end;
 
 		return DropdownLib;
@@ -3847,31 +3830,6 @@ function NeverLose:RegisiterItem(Frame: Frame , Signel)
 	end;
 
 	return idx;
-end;
-
-NeverLose.PendingConfig = NeverLose.PendingConfig or {};
-NeverLose.AutoFlagCounters = NeverLose.AutoFlagCounters or {};
-
-function NeverLose:GetAutoFlag(ControlType, Name)
-	local base = tostring(Name or "Unnamed"):gsub("[^%w_]", "_");
-	local key = tostring(ControlType)..":"..base;
-	local n = (NeverLose.AutoFlagCounters[key] or 0) + 1;
-	NeverLose.AutoFlagCounters[key] = n;
-	return "Auto_"..tostring(ControlType).."_"..base.."_"..tostring(n);
-end;
-
-function NeverLose:ApplyPendingConfigFlag(FlagName, FlagObject)
-	if not FlagName or not FlagObject or not FlagObject.SetValue then
-		return;
-	end;
-
-	if NeverLose.PendingConfig[FlagName] ~= nil then
-		local value = NeverLose.PendingConfig[FlagName];
-		NeverLose.PendingConfig[FlagName] = nil;
-		pcall(function()
-			FlagObject:SetValue(value);
-		end);
-	end;
 end;
 
 function NeverLose:CreateWindow(Config)
@@ -5466,26 +5424,17 @@ function NeverLose:CreateWindow(Config)
 		end;
 
 		function ConfigLib:LoadData(data)
-			local ok, coded = pcall(function()
-				return HttpService:JSONDecode(Encryption.reverse(NeverLose.Base64Decode(data)));
-			end);
-
-			if not ok or type(coded) ~= 'table' then
-				return false;
-			end;
-
-			table.clear(NeverLose.PendingConfig);
+			local coded = HttpService:JSONDecode(Encryption.reverse(NeverLose.Base64Decode(data)));
 
 			for i,v in next , coded do
-				if type(v) == 'table' and v.Idx ~= nil then
-					NeverLose.PendingConfig[v.Idx] = v.Value;
-					if NeverLose.Flags[v.Idx] and NeverLose.Flags[v.Idx].SetValue then
-						NeverLose:ApplyPendingConfigFlag(v.Idx, NeverLose.Flags[v.Idx]);
+				if v.Idx then
+					if NeverLose.Flags[v.Idx] then
+						task.spawn(function()
+							NeverLose.Flags[v.Idx]:SetValue(v.Value)
+						end)
 					end;
 				end;
 			end;
-
-			return true;
 		end;
 
 		function ConfigLib:RefreshConfig()
