@@ -4410,6 +4410,15 @@ function NeverLose:CreateWindow(Config)
 	ConfigFrame.Position = UDim2.new(0, 10, 0.5, 0)
 	ConfigFrame.Size = UDim2.new(0, 115, 0, 30)
 	ConfigFrame.ZIndex = 9
+	-- Native "Default ▾" config block removed from the UI entirely: hidden
+	-- and taken out of input/layout rather than deleted outright, since
+	-- ConfigLib/ConfigFrame/ConfigName are referenced all over the rest of
+	-- CreateWindow (animations, signals, the open/close button) and
+	-- surgically deleting all of that in one pass risks breaking something
+	-- else in this file. This achieves the same result: nothing shows, and
+	-- nothing here can auto-load stale data again.
+	ConfigFrame.Visible = false
+	ConfigFrame.Active = false
 
 	UIStroke_2.Transparency = 0.650
 	UIStroke_2.Color = Color3.fromRGB(45, 48, 58)
@@ -5744,7 +5753,12 @@ function NeverLose:CreateWindow(Config)
 		end;
 		
 		task.delay(1,function()
-			if ConfigLib.SelectedConfig == "Default" then
+			-- Auto-load/autosave of the "Default" config disabled — this was
+			-- the source of stale data getting re-applied on every launch
+			-- (old saved values no longer matching current controls). The
+			-- config UI is hidden now anyway, so nothing writes to this
+			-- file going forward either.
+			if false and ConfigLib.SelectedConfig == "Default" then
 				local path = Window.ConfigFolder..'/Default';
 				local ConfigNameStr = "Default";
 				
