@@ -197,8 +197,8 @@ NeverLose.MainColor = Color3.fromRGB(8, 8, 13);
 NeverLose.RegisiteryColor = {};
 NeverLose.NameRegisitry = {};
 NeverLose.IsMosueOverOtherFrame = false;
-NeverLose.GlobalLogo = "rbxassetid://104727749511281";
-NeverLose.ImageColorMapping = "rbxassetid://104727749511281";
+NeverLose.GlobalLogo = "rbxassetid://120358385035996";
+NeverLose.ImageColorMapping = "rbxassetid://4155801252";
 
 if getcustomasset then
 	local link = "https://github.com/4lpaca-pin/NeverLose/blob/main/assets/%s?raw=true";
@@ -1733,6 +1733,7 @@ function NeverLose:RegisiterHandler(Handler: Frame , Signal)
 		local UICorner_2 = Instance.new("UICorner")
 
 		Toggle.Name = NeverLose.RandomString();
+		Toggle:SetAttribute("NeverLoseThemeExclude", true);
 		Toggle.Parent = Handler
 		Toggle.BackgroundColor3 = Color3.fromRGB(10, 13, 21)
 		Toggle.BorderColor3 = Color3.fromRGB(0, 0, 0)
@@ -1895,6 +1896,7 @@ function NeverLose:RegisiterHandler(Handler: Frame , Signal)
 		local boxSize = 2;
 
 		Slider.Name = NeverLose.RandomString();
+		Slider:SetAttribute("NeverLoseThemeExclude", true);
 		Slider.Parent = Handler
 		Slider.BackgroundColor3 = Color3.fromRGB(26, 28, 36)
 		Slider.BackgroundTransparency = 1.000
@@ -3830,6 +3832,69 @@ function NeverLose:RegisiterItem(Frame: Frame , Signel)
 	end;
 
 	return idx;
+end;
+
+function NeverLose:ApplyGreenTheme(Root)
+	-- Green menu theme. Sliders/toggles are explicitly excluded by attribute.
+	local Colors = {
+		Background = Color3.fromRGB(8, 28, 15),
+		Background2 = Color3.fromRGB(12, 40, 21),
+		Background3 = Color3.fromRGB(18, 55, 29),
+		Stroke = Color3.fromRGB(35, 115, 60),
+		Text = Color3.fromRGB(170, 255, 190),
+		TextDim = Color3.fromRGB(105, 190, 125),
+		Accent = Color3.fromRGB(45, 190, 85)
+	};
+
+	local function IsExcluded(Object)
+		local Current = Object;
+		while Current and Current ~= Root do
+			if Current:GetAttribute("NeverLoseThemeExclude") == true then
+				return true;
+			end;
+			Current = Current.Parent;
+		end;
+		return false;
+	end;
+
+	local function Paint(Object)
+		if not Object or IsExcluded(Object) then
+			return;
+		end;
+
+		if Object:IsA("Frame") or Object:IsA("ScrollingFrame") or Object:IsA("ViewportFrame") then
+			if Object.BackgroundTransparency < 1 then
+				Object.BackgroundColor3 = Colors.Background2;
+			end;
+		elseif Object:IsA("TextLabel") or Object:IsA("TextBox") or Object:IsA("TextButton") then
+			Object.TextColor3 = Colors.Text;
+			if Object.BackgroundTransparency < 1 then
+				Object.BackgroundColor3 = Colors.Background3;
+			end;
+		elseif Object:IsA("ImageLabel") or Object:IsA("ImageButton") then
+			-- Keep the actual logo/profile image intact; only recolor UI icons.
+			if Object.ImageTransparency >= 0.99 then
+				Object.ImageColor3 = Colors.Accent;
+			end;
+		elseif Object:IsA("UIStroke") then
+			Object.Color = Colors.Stroke;
+		end;
+	end;
+
+	Paint(Root);
+	for _, Object in ipairs(Root:GetDescendants()) do
+		Paint(Object);
+	end;
+
+	-- Tabs/components are created after CreateWindow returns, so theme them automatically.
+	return Root.DescendantAdded:Connect(function(Object)
+		task.defer(function()
+			Paint(Object);
+			for _, Child in ipairs(Object:GetDescendants()) do
+				Paint(Child);
+			end;
+		end);
+	end);
 end;
 
 function NeverLose:CreateWindow(Config)
@@ -6116,6 +6181,11 @@ function NeverLose:CreateWindow(Config)
 	end;
 
 	Window:SetRender(false);
+
+	-- Apply the green theme only to the menu itself.
+	-- Sliders and toggles are excluded; UI buttons outside the menu (e.g. Silent Aim)
+	-- are untouched because the theme is scoped to WindowFrame.
+	Window.GreenThemeConnection = NeverLose:ApplyGreenTheme(WindowFrame);
 
 	return Window;
 end;
